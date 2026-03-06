@@ -1,11 +1,12 @@
 const { chromium } = require('playwright');
 
 // 1. 인자값 체크 및 할당
-const [model, generationYear] = process.argv.slice(2);
+const [brand, model, generationYear] = process.argv.slice(2);
 
-if (!model || !generationYear) {
-  console.error('❌ 사용법: pnpm start "모델" "세대/생산연식"');
-  console.error('예: pnpm start "아반떼" "The new AVANTE"');
+if (!brand || !model || !generationYear) {
+  console.error('❌ 사용법: node scraper.js "브랜드" "모델" "세대/생산연식"');
+  console.error('예: node scraper.js "현대" "아반떼" "The new AVANTE"');
+  console.error('예: node scraper.js "기아" "K5" "3세대 K5"');
   process.exit(1);
 }
 
@@ -14,14 +15,27 @@ if (!model || !generationYear) {
   const page = await browser.newPage();
 
   try {
-    console.log(`🚀 조회를 시작합니다: [${model}] / [${generationYear}]`);
+    console.log(
+      `🚀 조회를 시작합니다: [${brand}] / [${model}] / [${generationYear}]`,
+    );
 
-    // 현대 업데이트 홈 접속
+    // 브랜드 업데이트 홈 접속
+    let url = '';
+    if (brand === '현대') {
+      url = 'https://update.hyundai.com/KR/KO/home';
+    } else if (brand === '기아') {
+      url = 'https://update.kia.com/KR/KO/home';
+    } else {
+      throw new Error(
+        '지원하지 않는 브랜드입니다. "현대" 또는 "기아"를 입력하세요.',
+      );
+    }
+
     try {
-      await page.goto('https://update.hyundai.com/KR/KO/home');
+      await page.goto(url);
     } catch {
       throw new Error(
-        '[사이트 접속 실패] update.hyundai.com에 접속할 수 없습니다. 사이트 점검 또는 네트워크 문제일 수 있습니다.',
+        `[사이트 접속 실패] ${brand} 업데이트 사이트(${url})에 접속할 수 없습니다. 사이트 점검 또는 네트워크 문제일 수 있습니다.`,
       );
     }
 
@@ -33,7 +47,7 @@ if (!model || !generationYear) {
       console.log('✅ 단계 1: 차종 선택 모달 오픈');
     } catch {
       throw new Error(
-        '[페이지 구조 변경] "차종 선택해서 조회하기" 버튼을 찾을 수 없습니다. 현대 사이트 UI가 변경되었을 수 있습니다.',
+        '[페이지 구조 변경] "차종 선택해서 조회하기" 버튼을 찾을 수 없습니다. 사이트 UI가 변경되었을 수 있습니다.',
       );
     }
 

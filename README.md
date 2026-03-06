@@ -1,11 +1,11 @@
-# Hyundai Navigation Update Notifier
+# HMG Navigation Update Notifier
 
-현대자동차 내비게이션 공식 업데이트 웹사이트에서 특정 차종 및 연식의 최신 업데이트 배포월을 확인하고, 새로운 업데이트가 감지되면 슬랙(Slack)으로 알림을 보내주는 자동화 스크립트입니다.
+현대자동차그룹 내비게이션 공식 업데이트 웹사이트에서 특정 브랜드의 특정 차종 및 연식의 최신 업데이트 배포월을 확인하고, 새로운 업데이트가 감지되면 슬랙(Slack)으로 알림을 보내주는 자동화 스크립트입니다.
 
 ## 🚀 주요 기능
 
-- **자동 스크래핑**: Playwright를 이용해 [현대자동차 내비게이션 업데이트 웹사이트](https://update.hyundai.com/KR/KO/home)에서 데이터를 간편하게 조회합니다.
-- **GitHub Actions 자동화**: 매일 자정에 자동으로 스크립트를 실행하여 최신 데이터를 확인합니다.
+- **자동 스크래핑**: Playwright를 이용해 현대자동차그룹 내비게이션 업데이트 웹사이트에서 데이터를 간편하게 조회합니다.
+- **GitHub Actions 자동화**: 매일 한국시간 09:00에 자동으로 스크립트를 실행하여 최신 데이터를 확인합니다.
 - **캐싱 및 상태 비교**: 확인한 업데이트 배포 월을 캐싱하여, 이전 데이터와 비교 후 변동 사항이 있을 때만 업데이트 알림을 생성합니다.
 - **Slack 알림**: 신규 업데이트가 감지되거나 변동이 없을 때 슬랙 웹훅(Webhook)을 통해 요약 알림을 전송합니다.
 
@@ -32,16 +32,16 @@ npx playwright install chromium
 
 ### 2. 스크립트 실행
 
-명령어 뒤에 `"모델명"`과 `"세대/생산연식"`을 인자로 넘겨서 실행할 수 있습니다.
+명령어 뒤에 `"브랜드"`, `"모델명"`, `"세대/생산연식"`을 인자로 넘겨서 실행할 수 있습니다.
 
 ```bash
-pnpm start "아반떼" "The new AVANTE"
+pnpm start "현대" "아반떼" "The new AVANTE"
 ```
 
 또는 직접 node 명령어로 실행할 수도 있습니다.
 
 ```bash
-node scraper.js "아반떼" "The new AVANTE"
+node scraper.js "현대" "아반떼" "The new AVANTE"
 ```
 
 ## ⚙️ GitHub Actions 연동 및 사용법 (자동화)
@@ -50,11 +50,12 @@ GitHub Repository를 포크(Fork)하여 본인의 차량에 맞게 설정을 변
 
 ### 1. 차량 정보 수정
 
-`.github/workflows/scraper.yml` 파일을 열고, `env` 환경변수 부분의 차량 모델과 연식을 본인의 차량에 맞게 수정합니다.
+`.github/workflows/scraper.yml` 파일을 열고, `env` 환경변수 부분의 브랜드, 차량 모델과 연식을 본인의 차량에 맞게 수정합니다.
 
 ```yaml
 env:
-  CAR_MODEL: '아반떼' # <--- [모델명 입력] 예: 아반떼, 그랜저, 아이오닉 6
+  CAR_BRAND: '현대' # <--- [브랜드 입력] 예: 현대, 기아
+  CAR_MODEL: '아반떼' # <--- [모델명 입력] 예: 아반떼, 그랜저, 아이오닉 6 (기아 예: K5, 쏘렌토)
   CAR_YEAR: 'The new AVANTE' # <--- [연식/세부명 입력] 예: The new AVANTE, (IG) 하이브리드
 ```
 

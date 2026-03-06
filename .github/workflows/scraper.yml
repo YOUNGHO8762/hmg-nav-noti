@@ -7,7 +7,8 @@ on:
 
 # 전역 변수 설정: 여기서 모델명과 연식을 수정하세요
 env:
-  CAR_MODEL: '아반떼' # <--- [모델명 입력] 예: 아반떼, 그랜저, 아이오닉 6
+  CAR_BRAND: '현대' # <--- [브랜드 입력] 예: 현대, 기아
+  CAR_MODEL: '아반떼' # <--- [모델명 입력] 예: 아반떼, 그랜저, 아이오닉 6 (기아 예: K5, 쏘렌토)
   CAR_YEAR: 'The new AVANTE' # <--- [연식/세부명 입력] 예: The new AVANTE, (IG) 하이브리드
   CACHE_PATH: 'last_update.txt'
 
@@ -68,7 +69,7 @@ jobs:
 
           # scraper 실행 (에러 메시지를 캡처한 뒤 스텝을 실패 처리)
           set +e
-          RAW_OUTPUT=$(node scraper.js "${{ env.CAR_MODEL }}" "${{ env.CAR_YEAR }}" 2>&1)
+          RAW_OUTPUT=$(node scraper.js "${{ env.CAR_BRAND }}" "${{ env.CAR_MODEL }}" "${{ env.CAR_YEAR }}" 2>&1)
           EXIT_CODE=$?
           set -e
 
@@ -102,7 +103,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "🚨 *현대 내비게이션 업데이트 체크 - 에러 발생*\n*차종:* ${{ env.CAR_MODEL }} (${{ env.CAR_YEAR }})\n\n*에러 내용:*\n```${{ steps.monitor.outputs.ERROR_MSG }}```\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|🔗 GitHub Actions 로그 확인>"
+              "text": "🚨 *${{ env.CAR_BRAND }} 내비게이션 업데이트 체크 - 에러 발생*\n*차종:* ${{ env.CAR_MODEL }} (${{ env.CAR_YEAR }})\n\n*에러 내용:*\n```${{ steps.monitor.outputs.ERROR_MSG }}```\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|🔗 GitHub Actions 로그 확인>"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -113,7 +114,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "🔍 *현대 내비게이션 업데이트 체크*\n*차종:* ${{ env.CAR_MODEL }} (${{ env.CAR_YEAR }})\n*상태:* ${{ steps.monitor.outputs.MSG }}\n\n• *이전 데이터:* ${{ steps.monitor.outputs.LAST }}\n• *현재 데이터:* ${{ steps.monitor.outputs.CURRENT }}"
+              "text": "🔍 *${{ env.CAR_BRAND }} 내비게이션 업데이트 체크*\n*차종:* ${{ env.CAR_MODEL }} (${{ env.CAR_YEAR }})\n*상태:* ${{ steps.monitor.outputs.MSG }}\n\n• *이전 데이터:* ${{ steps.monitor.outputs.LAST }}\n• *현재 데이터:* ${{ steps.monitor.outputs.CURRENT }}"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
