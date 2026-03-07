@@ -1,108 +1,96 @@
 const { chromium } = require('playwright');
 
-// 1. 인자값 체크 및 할당
-const [brand, model, generationYear] = process.argv.slice(2);
+// ============================================================================
+// 1. 설정 (Configuration)
+// 사이트 주소나 요소(Selector)가 변경되면 이 부분만 수정하세요.
+// ============================================================================
+const BRAND_URLS = {
+  현대: 'https://update.hyundai.com/KR/KO/home',
+  기아: 'https://update.kia.com/KR/KO/home',
+  제네시스: 'https://update.genesis.com/KR/KO/home',
+};
 
-if (!brand || !model || !generationYear) {
-  console.error('❌ 사용법: node scraper.js "브랜드" "모델" "세대/생산연식"');
-  console.error('예: node scraper.js "현대" "아반떼" "The new AVANTE"');
-  console.error('예: node scraper.js "기아" "K5" "3세대 K5"');
-  process.exit(1);
+const SELECTORS = {
+  carNoInput: 'input[name="carNo"]',
+  ownerInput: 'input[name="carOwner"]',
+  submitButton: 'text="지금 조회 하기"',
+  resultContainer: '.firmware',
+};
+
+// ============================================================================
+// 2. 입력값 검증 (Validation)
+// ============================================================================
+function parseArguments() {
+  const [brand, carNo, carOwner] = process.argv.slice(2);
+
+  if (!brand || !carNo || !carOwner) {
+    console.error('❌ 사용법: node scraper.js "브랜드" "차량번호" "소유주"');
+    console.error('예: node scraper.js "현대" "12가3456" "홍길동"');
+    process.exit(1);
+  }
+
+  const url = BRAND_URLS[brand];
+  if (!url) {
+    console.error(
+      `❌ 지원하지 않는 브랜드입니다. "현대", "기아", "제네시스" 중 하나를 입력하세요.`,
+    );
+    process.exit(1);
+  }
+
+  return { brand, carNo, carOwner, url };
 }
 
-(async () => {
+// ============================================================================
+// 3. 핵심 스크래핑 로직 (Scraping)
+// ============================================================================
+async function scrapeUpdateInfo({ brand, carNo, carOwner, url }) {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
 
   try {
     console.log(
-      `🚀 조회를 시작합니다: [${brand}] / [${model}] / [${generationYear}]`,
+      `🚀 조회를 시작합니다: [${brand}] / 차량번호 [${carNo}] / 소유주 [${carOwner}]`,
     );
 
-    // 브랜드 업데이트 홈 접속
-    let url = '';
-    if (brand === '현대') {
-      url = 'https://update.hyundai.com/KR/KO/home';
-    } else if (brand === '기아') {
-      url = 'https://update.kia.com/KR/KO/home';
-    } else {
-      throw new Error(
-        '지원하지 않는 브랜드입니다. "현대" 또는 "기아"를 입력하세요.',
-      );
-    }
-
+    // 3-1. 페이지 이동
     try {
       await page.goto(url);
     } catch {
       throw new Error(
-        `[사이트 접속 실패] ${brand} 업데이트 사이트(${url})에 접속할 수 없습니다. 사이트 점검 또는 네트워크 문제일 수 있습니다.`,
+        `[사이트 접속 실패] ${brand} 업데이트 사이트(${url})에 접속할 수 없습니다.`,
       );
     }
 
-    // 2. 차종 선택 모달 열기
+    // 3-2. 폼 입력 및 제출
     try {
-      await page
-        .getByRole('button', { name: '차종 선택해서 조회하기' })
-        .click();
-      console.log('✅ 단계 1: 차종 선택 모달 오픈');
+      console.log(`📝 정보 입력 중...`);
+      await page.locator(SELECTORS.carNoInput).fill(carNo);
+      await page.locator(SELECTORS.ownerInput).fill(carOwner);
+      await page.locator('text="지금 조회 하기"').click();
+      console.log('🖱️ "지금 조회하기" 버튼 클릭 완료. 결과를 기다립니다...');
+    } catch (e) {
+      throw new Error(
+        `[입력/클릭 실패] 입력창이나 버튼을 찾을 수 없습니다. (상세: ${e.message})`,
+      );
+    }
+
+    // 3-3. 결과 대기 및 데이터 추출
+    try {
+      await page.waitForSelector(SELECTORS.resultContainer);
     } catch {
       throw new Error(
-        '[페이지 구조 변경] "차종 선택해서 조회하기" 버튼을 찾을 수 없습니다. 사이트 UI가 변경되었을 수 있습니다.',
+        '[결과 로딩 실패] 정보가 일치하지 않거나 서버 응답이 지연되고 있습니다.',
       );
     }
 
-    // 3. 모델 선택 (정확한 텍스트 매칭을 위해 filter 활용)
-    try {
-      const modelButton = page
-        .locator('button')
-        .filter({ hasText: new RegExp(`^${model}$`) });
-      await modelButton.waitFor({ state: 'visible', timeout: 10000 });
-      await modelButton.click();
-      console.log(`✅ 단계 2: 모델(${model}) 클릭 완료`);
-    } catch {
-      throw new Error(
-        `[모델명 오류] "${model}" 모델을 찾을 수 없습니다. 모델명을 확인해주세요. (예: 아반떼, 그랜저, 아이오닉 6)`,
-      );
-    }
+    const containerText = await page.innerText(SELECTORS.resultContainer);
 
-    // 4. 다음 단계 이동
-    await page.getByRole('button', { name: '다음' }).click();
-
-    // 5. 세대/생산연식 선택
-    try {
-      const generationYearButton = page
-        .locator('button')
-        .filter({ hasText: new RegExp(`^${generationYear}$`) });
-      await generationYearButton.waitFor({ state: 'visible', timeout: 10000 });
-      await generationYearButton.click();
-      console.log(`✅ 단계 3: 세대/생산연식(${generationYear}) 클릭 완료`);
-    } catch {
-      throw new Error(
-        `[세대/생산연식 오류] "${model}" 모델에서 "${generationYear}" 세대/생산연식을 찾을 수 없습니다. 세대/생산연식 값을 확인해주세요.`,
-      );
-    }
-
-    // 6. 조회 버튼 클릭 (마지막 버튼 선택 로직 유지)
-    await page.locator('button:has-text("조회")').last().click();
-    console.log('✅ 단계 4: 조회 요청 전송');
-
-    // 7. 결과 페이지 대기 및 데이터 추출
-    try {
-      await page.waitForSelector('.firmware', { timeout: 10000 });
-    } catch {
-      throw new Error(
-        '[결과 로딩 실패] 업데이트 결과 페이지를 불러올 수 없습니다. 페이지 구조가 변경되었거나 서버 응답이 느릴 수 있습니다.',
-      );
-    }
-
-    const containerText = await page.innerText('.firmware');
-
-    // 8. 정규표현식으로 날짜 추출
+    // 3-4. 결과 파싱 및 출력
     const dateMatch = containerText.match(/(\d{2}년 \d{1,2}월)/);
 
     console.log('\n' + '='.repeat(40));
     if (dateMatch) {
-      console.log(`🎯 결과: ${model} (${generationYear})`);
+      console.log(`🎯 조회 완료: ${brand} ${carNo} (${carOwner})`);
       console.log(`📅 업데이트 배포월: ${dateMatch[0]}`);
     } else {
       console.warn(
@@ -111,11 +99,24 @@ if (!brand || !model || !generationYear) {
       console.log('Raw Data:', containerText.trim());
     }
     console.log('='.repeat(40) + '\n');
-  } catch (error) {
-    console.error(`🚨 ${error.message}`);
-    process.exitCode = 1;
   } finally {
     await browser.close();
     console.log('👋 브라우저를 종료합니다.');
   }
-})();
+}
+
+// ============================================================================
+// 4. 실행 (Main)
+// ============================================================================
+async function main() {
+  const targetInfo = parseArguments();
+
+  try {
+    await scrapeUpdateInfo(targetInfo);
+  } catch (error) {
+    console.error(`🚨 ${error.message}`);
+    process.exitCode = 1;
+  }
+}
+
+main();
